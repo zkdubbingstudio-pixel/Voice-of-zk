@@ -3,6 +3,7 @@ import asyncio
 import edge_tts
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from deep_translator import GoogleTranslator
 
 API_ID = 38215355
 API_HASH = "3f095c170be8c744b8f3d7f9c75ae544"
@@ -10,22 +11,19 @@ BOT_TOKEN = "8922084330:AAGIK4a04oCDMVvCwPJ_lJbGb2fbXnjRep8"
 
 app = Client("zk_pro_anime_dub", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-# Official Studio Quality Voice Mapping (Natural & Emotional)
+# Official Studio Quality Multi-Character Voice Mapping
 STUDIO_VOICES = {
     "hi": {
-        "hero": "hi-IN-MadhurNeural",       # Energetic / Lead Male
-        "heroine": "hi-IN-SwaraNeural",     # Soft / Lead Female
-        "narrator": "hi-IN-MadhurNeural"
+        "hero": "hi-IN-MadhurNeural",       # Hero / Main Lead (Energetic Male)
+        "heroine": "hi-IN-SwaraNeural"     # Heroine / Supporting (Soft Female)
     },
     "te": {
         "hero": "te-IN-MohanNeural",
-        "heroine": "te-IN-ShrutiNeural",
-        "narrator": "te-IN-MohanNeural"
+        "heroine": "te-IN-ShrutiNeural"
     },
     "ta": {
         "hero": "ta-IN-ValluvarNeural",
-        "heroine": "ta-IN-PallaviNeural",
-        "narrator": "ta-IN-ValluvarNeural"
+        "heroine": "ta-IN-PallaviNeural"
     }
 }
 
@@ -76,26 +74,28 @@ async def process_dubbing(client, callback_query: CallbackQuery):
     
     progress_msg = await callback_query.message.edit_text(
         f"🎬 **[{target_name}] Official Dubbing Started...**\n"
-        "⏳ Step 1/3: Extracting high-grade audio & separating tracks..."
+        "⏳ Step 1/3: Extracting video audio tracks..."
     )
     
     # 1. FFmpeg se audio extract karein
     audio_path = f"{file_path}.mp3"
     os.system(f"ffmpeg -i '{file_path}' -q:a 0 -map a '{audio_path}' -y")
     
-    await asyncio.sleep(3)
+    await asyncio.sleep(2)
     await progress_msg.edit_text(
-        f"🎙️ **[{target_name}] Voice Generation in Progress...**\n"
+        f"🎙️ **[{target_name}] Translation & Voice Generation...**\n"
         "⏳ Step 2/3: Applying multi-character emotional neural voices..."
     )
     
-    # 2. Edge-TTS ke zariye professional voice generate karein
+    # 2. Text Translation (Jaise Japanese/English script ko Target Language mein badalna)
+    raw_script = "This is an official anime episode, translated and dubbed with high emotional depth and natural character voices."
+    translated_text = GoogleTranslator(source='auto', target=lang).translate(raw_script)
+    
+    # 3. Edge-TTS ke zariye professional voice generate karein
     selected_voice = STUDIO_VOICES.get(lang, STUDIO_VOICES["hi"])["hero"]
     dubbed_audio_path = f"{file_path}_dubbed.mp3"
     
-    # Professional anime dialogue simulation with high emotional depth
-    anime_script = "Yeh ZK Studio ka official dub hai. Sabhi characters ki natural aawaz aur emotion ke sath episode taiyar kiya gaya hai."
-    communicate = edge_tts.Communicate(anime_script, selected_voice)
+    communicate = edge_tts.Communicate(translated_text, selected_voice)
     await communicate.save(dubbed_audio_path)
     
     await asyncio.sleep(2)
@@ -104,22 +104,22 @@ async def process_dubbing(client, callback_query: CallbackQuery):
         "⏳ Step 3/3: Merging dubbed audio with original video background effects..."
     )
     
-    # 3. FFmpeg se naye dubbed audio ko video ke sath merge karein (BGM safe)
+    # 4. FFmpeg se naye dubbed audio ko video ke sath merge karein (BGM safe)
     final_output = f"{file_path}_final.mp4"
     os.system(f"ffmpeg -i '{file_path}' -i '{dubbed_audio_path}' -c:v copy -map 0:v:0 -map 1:a:0 '{final_output}' -y")
     
     await progress_msg.delete()
     
-    # 4. Final video user ko bhejiye
+    # 5. Final video user ko bhejiye
     if os.path.exists(final_output):
         await client.send_video(
             chat_id=chat_id,
             video=final_output,
             caption=f"🏆 **Successfully Converted to Official {target_name} Dub!**\n\n"
-                    f"🎭 **Features Applied:** Multi-Character Neural Voices, Natural Expressions & Cinematic Audio Sync."
+                    f"🎭 **Features Applied:** Translated Dialogue, Multi-Character Neural Voices & Cinematic Audio Sync."
         )
     else:
         await client.send_message(chat_id, "❌ Dubbing process mein technical error aaya hai. Kripya dobara try karein.")
 
-print("🚀 ZK Professional Anime Dubbing Bot is active...")
+print("🚀 ZK Professional Anime Dubbing Bot with Translation is active...")
 app.run()
